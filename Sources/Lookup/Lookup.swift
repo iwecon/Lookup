@@ -776,26 +776,18 @@ extension Lookup: Codable {
                     object = try? container.decode(boolType)
                 case let doubleType as Double.Type:
                     object = try? container.decode(doubleType)
-                case let uintType as UInt.Type:
-                    object = try? container.decode(uintType)
-                case let uint64Type as UInt64.Type:
-                    object = try? container.decode(uint64Type)
-                case _ as UInt32.Type:
+                case _ as UInt.Type,
+                    _ as UInt8.Type,
+                    _ as UInt16.Type,
+                    _ as UInt32.Type,
+                    _ as UInt64.Type:
                     object = try? container.decode(Int64.self)
-                case _ as UInt16.Type:
-                    object = try? container.decode(Int32.self)
-                case let uint8Type as UInt8.Type:
-                    object = try? container.decode(uint8Type)
-                case let intType as Int.Type:
-                    object = try? container.decode(intType)
-                case let int64Type as Int64.Type:
-                    object = try? container.decode(int64Type)
-                case let int32Type as Int32.Type:
-                    object = try? container.decode(int32Type)
-                case let int16Type as Int16.Type:
-                    object = try? container.decode(int16Type)
-                case _ as Int8.Type:
-                    object = try? container.decode(Int16.self)
+                case _ as Int.Type,
+                    _ as Int8.Type,
+                    _ as Int16.Type,
+                    _ as Int32.Type,
+                    _ as Int64.Type:
+                    object = try? container.decode(Int64.self)
                 default:
                     break
                 }
