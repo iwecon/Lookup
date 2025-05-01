@@ -763,6 +763,7 @@ extension Lookup: Codable {
                 if object != nil {
                     break
                 }
+                // ⚠️ refer: https://github.com/vapor/postgres-nio/pull/120
                 // try to decode value
                 switch type {
                 case let stringType as String.Type:
@@ -779,10 +780,10 @@ extension Lookup: Codable {
                     object = try? container.decode(uintType)
                 case let uint64Type as UInt64.Type:
                     object = try? container.decode(uint64Type)
-                case let uint32Type as UInt32.Type:
-                    object = try? container.decode(uint32Type)
-                case let uint16Type as UInt16.Type:
-                    object = try? container.decode(uint16Type)
+                case _ as UInt32.Type:
+                    object = try? container.decode(Int64.self)
+                case _ as UInt16.Type:
+                    object = try? container.decode(Int32.self)
                 case let uint8Type as UInt8.Type:
                     object = try? container.decode(uint8Type)
                 case let intType as Int.Type:
@@ -793,8 +794,8 @@ extension Lookup: Codable {
                     object = try? container.decode(int32Type)
                 case let int16Type as Int16.Type:
                     object = try? container.decode(int16Type)
-                case let int8Type as Int8.Type:
-                    object = try? container.decode(int8Type)
+                case _ as Int8.Type:
+                    object = try? container.decode(Int16.self)
                 default:
                     break
                 }
@@ -811,24 +812,24 @@ extension Lookup: Codable {
         switch rawValue {
         case let intValue as Int:
             try container.encode(intValue)
-        case let int8Value as Int8:
-            try container.encode(int8Value)
         case let int16Value as Int16:
             try container.encode(int16Value)
         case let int32Value as Int32:
             try container.encode(int32Value)
         case let int64Value as Int64:
             try container.encode(int64Value)
+        case let int8Value as Int8:
+            try container.encode(int8Value)
         case let uintValue as UInt:
             try container.encode(uintValue)
-        case let uint8Value as UInt8:
-            try container.encode(uint8Value)
         case let uint16Value as UInt16:
             try container.encode(uint16Value)
         case let uint32Value as UInt32:
             try container.encode(uint32Value)
         case let uint64Value as UInt64:
             try container.encode(uint64Value)
+        case let uint8Value as UInt8:
+            try container.encode(uint8Value)
         case let doubleValue as Double:
             try container.encode(doubleValue)
         case let boolValue as Bool:
