@@ -548,7 +548,12 @@ public extension Lookup {
     
     // MARK: - Int
     var int: Int? {
-        (string as NSString?)?.integerValue
+        switch rawType {
+        case .bool:
+            rawBool ? 1 : 0
+        default:
+            (string as NSString?)?.integerValue
+        }
     }
     var intValue: Int {
         int!
