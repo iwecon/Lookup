@@ -410,6 +410,10 @@ struct LookupTests {
         }
         """
         let clookup = Lookup(json)
+        #expect(clookup.b.bool == true)
+        #expect(clookup.b.int == 1)
+        #expect(clookup.i.int == 1)
+        #expect(clookup.i.bool == true)
         #expect(clookup.description.contains("true"))
         
         let data = try JSONEncoder().encode(clookup)
