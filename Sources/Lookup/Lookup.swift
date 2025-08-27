@@ -23,6 +23,9 @@ fileprivate func unwrap(_ object: Any?) -> Any {
     case let lookupRawValue as LookupRawValue:
         return lookupRawValue.lookupRawValue
     case let number as NSNumber:
+        if String(describing: type(of: number)) == "__NSCFBoolean" {
+            return number.boolValue
+        }
         return number
     case let str as String:
         return str
@@ -57,6 +60,7 @@ public struct Lookup: @unchecked Sendable {
         case object
         case number
         case string
+        case bool
     }
     
     public var rawValue: Any {
@@ -74,10 +78,13 @@ public struct Lookup: @unchecked Sendable {
                 return rawNumber
             case .string:
                 return rawString
+            case .bool:
+                return rawBool
             }
         }
     }
     
+    var rawBool: Bool = false
     var rawType: RawType
     var rawDict: [String: Any] = [:]
     var rawArray: [Any] = []
@@ -94,8 +101,13 @@ public struct Lookup: @unchecked Sendable {
         default:
             switch unwrap(jsonObject) {
             case let number as NSNumber:
-                self.rawNumber = number
-                self.rawType = .number
+                if String(describing: type(of: number)) == "__NSCFBoolean" {
+                    self.rawBool = number.boolValue
+                    self.rawType = .bool
+                } else {
+                    self.rawNumber = number
+                    self.rawType = .number
+                }
                 
             case let str as String:
                 self.rawString = str
@@ -166,6 +178,10 @@ public struct Lookup: @unchecked Sendable {
                 switch rawType {
                 case .none:
                     return .null
+                    
+                case .bool:
+                    return Lookup(rawBool)
+                
                 case .dict, .object:
                     let value: Any = rawDict[key, default: NSNull()]
                     let innerLookup = Lookup(value)
@@ -189,8 +205,12 @@ public struct Lookup: @unchecked Sendable {
         }
         
         switch rawType {
+        case .bool:
+            return Lookup(rawBool)
+            
         case .dict, .object:
             return Lookup(rawDict[dynamicMember, default: NSNull()])
+            
         case .array, .string:
             if dynamicMember.isPurnInt,
                let index = Int(dynamicMember)
@@ -198,6 +218,7 @@ public struct Lookup: @unchecked Sendable {
                 return self[index]
             }
             return .null
+            
         default:
             return .null
         }
@@ -229,7 +250,7 @@ public struct Lookup: @unchecked Sendable {
             switch _value.rawType {
             case .none, .number, .string:
                 _value = value
-            case .dict, .object:
+            case .dict, .object, .bool:
                 _value.rawDict[finalKey] = value.rawValue
             case .array:
                 if inner {
@@ -250,7 +271,7 @@ public struct Lookup: @unchecked Sendable {
         switch rawType {
         case .none, .number, .string:
             self = value
-        case .dict, .object:
+        case .dict, .object, .bool:
             rawDict[dynamicMember] = value.rawValue
         case .array:
             if dynamicMember.isPurnInt, let index = Int(dynamicMember) {
@@ -559,10 +580,15 @@ public extension Lookup {
     
     // MARK: - Bool
     var bool: Bool? {
-        (string as NSString?)?.boolValue
+        switch rawType {
+        case .bool:
+            rawBool
+        default:
+            (string as NSString?)?.boolValue
+        }
     }
     var boolValue: Bool {
-        (string! as NSString).boolValue
+        self.bool!
     }
     
     // MARK: - Dict
@@ -766,14 +792,14 @@ extension Lookup: Codable {
                 // ⚠️ refer: https://github.com/vapor/postgres-nio/pull/120
                 // try to decode value
                 switch type {
+                case let boolType as Bool.Type:
+                    object = try? container.decode(boolType)
                 case let stringType as String.Type:
                     object = try? container.decode(stringType)
                 case let jsonValueArrayType as [Lookup].Type:
                     object = try? container.decode(jsonValueArrayType)
                 case let jsonValueDictType as [String: Lookup].Type:
                     object = try? container.decode(jsonValueDictType)
-                case let boolType as Bool.Type:
-                    object = try? container.decode(boolType)
                 case let doubleType as Double.Type:
                     object = try? container.decode(doubleType)
                 case _ as UInt.Type,
@@ -895,6 +921,8 @@ extension Lookup: Swift.CustomStringConvertible, Swift.CustomDebugStringConverti
             desc = "\(rawNumber)"
         case .string:
             desc = "\(rawValue)"
+        case .bool:
+            desc = "\(rawBool)"
         case .none:
             desc = "nil"
         }
@@ -925,7 +953,7 @@ extension Lookup {
     
     public func compactMapValues(keepKeyOfEmptyValue: Bool = false) -> Lookup {
         switch rawType {
-        case .none, .number:
+        case .none, .number, .bool:
             return self
         case .string:
             return self
