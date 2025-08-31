@@ -65,6 +65,42 @@ func mirrorArray(_ array: [Any], _ each: ((_: String?, _: Any) -> Void)?) -> [An
     }
 }
 
+private func processChild(label: String, value: Any, reflecting: Any, each: ((String?, Any) -> Void)?) -> (String, Any)? {
+    if let unwrap = reflecting as? LookupUnwrap, let unwrapped = unwrap.lookupUnwrap(key: label, value: value) {
+        let processedValue = mirrorValue(unwrapped)
+        if let opt = processedValue as? OptionalProtocol, opt.isNil {
+            return nil
+        } else if processedValue is NSNull {
+            return nil
+        } else {
+            return (label, processedValue)
+        }
+    } else {
+        let unwrappedValue = unwrapValue(value)
+        if let array = unwrappedValue as? [Any] {
+            let mirroredArray = mirrorArray(array, each)
+            if !mirroredArray.isEmpty {
+                return (label, mirroredArray)
+            }
+        } else if canMirrorInto(unwrappedValue) {
+            let mirroredDict = mirrors(reflecting: unwrappedValue, each)
+            if !mirroredDict.isEmpty {
+                return (label, mirroredDict)
+            }
+        } else {
+            let processedValue = mirrorValue(value)
+            if let opt = processedValue as? OptionalProtocol, opt.isNil {
+                return nil
+            } else if processedValue is NSNull {
+                return nil
+            } else {
+                return (label, processedValue)
+            }
+        }
+    }
+    return nil
+}
+
 public func mirrors(reflecting: Any?, _ each: ((_: String?, _: Any) -> Void)? = nil) -> [String: Any] {
     guard let reflecting = reflecting else { return [:] }
     
@@ -73,37 +109,8 @@ public func mirrors(reflecting: Any?, _ each: ((_: String?, _: Any) -> Void)? = 
     let mirror = Mirror(reflecting: reflecting)
     for child in mirror.children {
         if let label = child.label, !label.isEmpty {
-            if let unwrap = reflecting as? LookupUnwrap, let unwrapped = unwrap.lookupUnwrap(key: label, value: child.value) {
-                let value = mirrorValue(unwrapped)
-                if let opt = value as? OptionalProtocol, opt.isNil {
-                    // skip
-                } else if value is NSNull {
-                    // skip
-                } else {
-                    map[label] = value
-                }
-            } else {
-                let value = unwrapValue(child.value)
-                if let array = value as? [Any] {
-                    let mirroredArray = mirrorArray(array, each)
-                    if !mirroredArray.isEmpty {
-                        map[label] = mirroredArray
-                    }
-                } else if canMirrorInto(value) {
-                    let mirroredDict = mirrors(reflecting: value, each)
-                    if !mirroredDict.isEmpty {
-                        map[label] = mirroredDict
-                    }
-                } else {
-                    let value = mirrorValue(child.value)
-                    if let opt = value as? OptionalProtocol, opt.isNil {
-                        // skip
-                    } else if value is NSNull {
-                        // skip
-                    } else {
-                        map[label] = value
-                    }
-                }
+            if let result = processChild(label: label, value: child.value, reflecting: reflecting, each: each) {
+                map[result.0] = result.1
             }
         }
         each?(child.label, child.value)
@@ -113,37 +120,8 @@ public func mirrors(reflecting: Any?, _ each: ((_: String?, _: Any) -> Void)? = 
     while superMirror != nil {
         for child in superMirror!.children {
             if let label = child.label, !label.isEmpty {
-                if let unwrap = reflecting as? LookupUnwrap, let unwrapped = unwrap.lookupUnwrap(key: label, value: child.value) {
-                    let value = mirrorValue(unwrapped)
-                    if let opt = value as? OptionalProtocol, opt.isNil {
-                        // skip
-                    } else if value is NSNull {
-                        // skip
-                    } else {
-                        map[label] = value
-                    }
-                } else {
-                    let value = unwrapValue(child.value)
-                    if let array = value as? [Any] {
-                        let mirroredArray = mirrorArray(array, each)
-                        if !mirroredArray.isEmpty {
-                            map[label] = mirroredArray
-                        }
-                    } else if canMirrorInto(value) {
-                        let mirroredDict = mirrors(reflecting: value, each)
-                        if !mirroredDict.isEmpty {
-                            map[label] = mirroredDict
-                        }
-                    } else {
-                        let value = mirrorValue(child.value)
-                        if let opt = value as? OptionalProtocol, opt.isNil {
-                            // skip
-                        } else if value is NSNull {
-                            // skip
-                        } else {
-                            map[label] = value
-                        }
-                    }
+                if let result = processChild(label: label, value: child.value, reflecting: reflecting, each: each) {
+                    map[result.0] = result.1
                 }
             }
             each?(child.label, child.value)
@@ -152,3 +130,4 @@ public func mirrors(reflecting: Any?, _ each: ((_: String?, _: Any) -> Void)? = 
     }
     return map
 }
+

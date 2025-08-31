@@ -5,6 +5,21 @@ import Foundation
 import UIKit
 #endif
 
+struct Params {
+    let lookup: Lookup
+    init(_ lookup: Lookup) {
+        self.lookup = lookup
+    }
+}
+
+extension Params: ExpressibleByDictionaryLiteral {
+    typealias Key = String
+    typealias Value = any Any & Sendable
+    init(dictionaryLiteral elements: (String, any Sendable)...) {
+        self.init(Lookup(Dictionary(uniqueKeysWithValues: elements)))
+    }
+}
+
 enum AnimalType: String, Codable {
     case dog, cat
 }
@@ -459,8 +474,10 @@ struct LookupTests {
     
     @Test("Test ExpressionByDictionary")
     func testExpressionByDictionary() throws {
-        let lookup = Lookup(["ids": [UUID(), UUID(), UUID()]])
-        #expect(lookup.ids.count == 3)
+        
+        let params: Params = ["ids": [UUID(), UUID(), UUID()]]
+        print(params.lookup)
+        #expect(params.lookup.ids.count == 3)
     }
     
     @Test("Test Nesting Codable")
@@ -502,6 +519,13 @@ struct LookupTests {
 """
         let clookup = Lookup(json).compactMapValues()
         #expect(clookup.hasKey("user") == false)
+    }
+    
+    @Test("Test Array")
+    func testArray() async throws {
+        let lookup: Lookup = ["ids": [UUID()]]
+        print(lookup.description)
+        #expect(lookup.ids.count == 1)
     }
     
     #if os(iOS)

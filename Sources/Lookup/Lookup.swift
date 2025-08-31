@@ -352,7 +352,7 @@ public struct Lookup: @unchecked Sendable {
 }
 
 extension Lookup: ExpressibleByArrayLiteral {
-    public typealias ArrayLiteralElement = Any
+    public typealias ArrayLiteralElement = any Any & Sendable
     
     public init(arrayLiteral elements: ArrayLiteralElement...) {
         self.init(jsonObject: elements)
@@ -361,7 +361,7 @@ extension Lookup: ExpressibleByArrayLiteral {
 
 extension Lookup: ExpressibleByDictionaryLiteral {
     public typealias Key = String
-    public typealias Value = Any?
+    public typealias Value = (any Any & Sendable)?
     public init(dictionaryLiteral elements: (Key, Value)...) {
         self.init(jsonObject: Dictionary(uniqueKeysWithValues: elements))
     }
