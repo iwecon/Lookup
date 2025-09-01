@@ -122,8 +122,25 @@ public struct Lookup: @unchecked Sendable {
                 self.rawType = .array
                 
             case _ as AnyObject:
-                self.rawDict = mirrors(reflecting: jsonObject)
-                self.rawType = .object
+                switch jsonObject {
+                case let encodable as Encodable:
+                    do {
+                        let data = try JSONEncoder().encode(encodable)
+                        if let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                            self.rawDict = dict
+                            self.rawType = .object
+                        } else {
+                            self.rawType = .none
+                        }
+                    } catch {
+                        self.rawType = .none
+                    }
+                    
+                default:
+                    self.rawDict = mirrors(reflecting: jsonObject)
+                    self.rawType = .object
+                }
+                
             default:
                 self.rawType = .none
             }
@@ -992,3 +1009,4 @@ extension Lookup {
         }
     }
 }
+

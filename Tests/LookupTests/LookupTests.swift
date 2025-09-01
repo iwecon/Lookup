@@ -5,6 +5,15 @@ import Foundation
 import UIKit
 #endif
 
+struct CodableObject: Codable, Identifiable {
+    let id: UUID
+    var text: String
+    
+    enum CodingKeys: String, CodingKey {
+        case id, text = "t_ext"
+    }
+}
+
 struct Params {
     let lookup: Lookup
     init(_ lookup: Lookup) {
@@ -498,11 +507,11 @@ struct LookupTests {
         #expect(lookup.toID.string == "10086")
         #expect(lookup.toID.int == 10086)
         
-        #expect(lookup.markup.keyboards.0.0.text.string == "Hang up")
-        #expect(lookup.markup.keyboards.0.0.callbackData.string == "/hang-up")
+        #expect(lookup.markup.inline_keyboard.0.0.text.string == "Hang up")
+        #expect(lookup.markup.inline_keyboard.0.0.callback_data.string == "/hang-up")
         
-        #expect(lookup.markup.keyboards.1.0.text.string == "Recording")
-        #expect(lookup.markup.keyboards.1.0.callbackData.string == "/recording")
+        #expect(lookup.markup.inline_keyboard.1.0.text.string == "Recording")
+        #expect(lookup.markup.inline_keyboard.1.0.callback_data.string == "/recording")
     }
     
     @Test("Test Unwrap")
@@ -526,6 +535,16 @@ struct LookupTests {
         let lookup: Lookup = ["ids": [UUID()]]
         print(lookup.description)
         #expect(lookup.ids.count == 1)
+    }
+    
+    // Codable 需要获取 CodingKeys 的结果，否则服务端会出问题。。。
+    @Test("Test Codable Object")
+    func testCodableObject() throws {
+        
+        let lookup = Lookup(CodableObject(id: UUID(), text: "Hello, world!"))
+        print(lookup.description)
+        // t_ext is Codable `CodingKey`
+        #expect(lookup.t_ext.string == "Hello, world!")
     }
     
     #if os(iOS)
