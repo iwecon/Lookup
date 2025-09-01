@@ -600,7 +600,7 @@ public extension Lookup {
     /// Available when rawType is in `[.dict, .string]` (if use string, it **MUST** be jsonString)
     var dict: [String: Any]? {
         switch rawType {
-        case .dict:
+        case .dict, .object:
             return rawDict
         case .string:
             if let originString = rawValue as? String,
@@ -620,7 +620,7 @@ public extension Lookup {
     /// Available when rawType is in `[.dict, .string]` (if use string, it **MUST** be jsonString)
     var dictLookup: Lookup {
         switch rawType {
-        case .dict:
+        case .dict, .object:
             return Lookup(rawDict)
         case .string:
             if let originString = rawValue as? String,
@@ -761,14 +761,16 @@ public func += (lhs: inout Lookup, rhs: Lookup) {
 extension Lookup: Codable {
     
     private var codableDictionary: [String: Lookup]? {
-        if rawType == .dict {
+        switch rawType {
+        case .dict, .object:
             var d = [String: Lookup](minimumCapacity: rawDict.count)
             rawDict.forEach { pair in
                 d[pair.key] = Lookup(pair.value)
             }
             return d
+        default:
+            return nil
         }
-        return nil
     }
     
     private var codableArray: [Lookup]? {
