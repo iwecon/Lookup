@@ -122,8 +122,25 @@ public struct Lookup: @unchecked Sendable {
                 self.rawType = .array
                 
             case _ as AnyObject:
-                self.rawDict = mirrors(reflecting: jsonObject)
-                self.rawType = .object
+                switch jsonObject {
+                case let encodable as Encodable:
+                    do {
+                        let data = try JSONEncoder().encode(encodable)
+                        if let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                            self.rawDict = dict
+                            self.rawType = .object
+                        } else {
+                            self.rawType = .none
+                        }
+                    } catch {
+                        self.rawType = .none
+                    }
+                    
+                default:
+                    self.rawDict = mirrors(reflecting: jsonObject)
+                    self.rawType = .object
+                }
+                
             default:
                 self.rawType = .none
             }
@@ -352,7 +369,7 @@ public struct Lookup: @unchecked Sendable {
 }
 
 extension Lookup: ExpressibleByArrayLiteral {
-    public typealias ArrayLiteralElement = Any
+    public typealias ArrayLiteralElement = any Any & Sendable
     
     public init(arrayLiteral elements: ArrayLiteralElement...) {
         self.init(jsonObject: elements)
@@ -361,7 +378,7 @@ extension Lookup: ExpressibleByArrayLiteral {
 
 extension Lookup: ExpressibleByDictionaryLiteral {
     public typealias Key = String
-    public typealias Value = Any?
+    public typealias Value = (any Any & Sendable)?
     public init(dictionaryLiteral elements: (Key, Value)...) {
         self.init(jsonObject: Dictionary(uniqueKeysWithValues: elements))
     }
@@ -600,7 +617,7 @@ public extension Lookup {
     /// Available when rawType is in `[.dict, .string]` (if use string, it **MUST** be jsonString)
     var dict: [String: Any]? {
         switch rawType {
-        case .dict:
+        case .dict, .object:
             return rawDict
         case .string:
             if let originString = rawValue as? String,
@@ -620,7 +637,7 @@ public extension Lookup {
     /// Available when rawType is in `[.dict, .string]` (if use string, it **MUST** be jsonString)
     var dictLookup: Lookup {
         switch rawType {
-        case .dict:
+        case .dict, .object:
             return Lookup(rawDict)
         case .string:
             if let originString = rawValue as? String,
@@ -761,14 +778,16 @@ public func += (lhs: inout Lookup, rhs: Lookup) {
 extension Lookup: Codable {
     
     private var codableDictionary: [String: Lookup]? {
-        if rawType == .dict {
+        switch rawType {
+        case .dict, .object:
             var d = [String: Lookup](minimumCapacity: rawDict.count)
             rawDict.forEach { pair in
                 d[pair.key] = Lookup(pair.value)
             }
             return d
+        default:
+            return nil
         }
-        return nil
     }
     
     private var codableArray: [Lookup]? {
@@ -983,3 +1002,4 @@ extension Lookup {
         }
     }
 }
+

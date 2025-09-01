@@ -5,6 +5,30 @@ import Foundation
 import UIKit
 #endif
 
+struct CodableObject: Codable, Identifiable {
+    let id: UUID
+    var text: String
+    
+    enum CodingKeys: String, CodingKey {
+        case id, text = "t_ext"
+    }
+}
+
+struct Params {
+    let lookup: Lookup
+    init(_ lookup: Lookup) {
+        self.lookup = lookup
+    }
+}
+
+extension Params: ExpressibleByDictionaryLiteral {
+    typealias Key = String
+    typealias Value = any Any & Sendable
+    init(dictionaryLiteral elements: (String, any Sendable)...) {
+        self.init(Lookup(Dictionary(uniqueKeysWithValues: elements)))
+    }
+}
+
 enum AnimalType: String, Codable {
     case dog, cat
 }
@@ -29,6 +53,39 @@ open class AnimalClass {
     let age: Int = 4
     let type: AnimalType = .dog
     let intType: AnimalIntType = .dog
+}
+
+struct KeyboardButton: Codable {
+    let text: String
+    let url: String?
+    let callbackData: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case text
+        case url
+        case callbackData = "callback_data"
+    }
+    init(text: String, url: String? = nil, callbackData: String? = nil) {
+        self.text = text
+        self.url = url
+        self.callbackData = callbackData
+    }
+}
+
+struct Markup: Codable {
+    var keyboards: [[KeyboardButton]]
+    init(keyboards buttons: [[KeyboardButton]]) {
+        self.keyboards = buttons
+    }
+    enum CodingKeys: String, CodingKey {
+        case keyboards = "inline_keyboard"
+    }
+}
+
+struct MessageReply: Codable {
+    let text: String
+    let toID: Int
+    let markup: Markup?
 }
 
 final class Species: AnimalClass {
@@ -424,6 +481,39 @@ struct LookupTests {
         #expect(encoded?.contains("1") == true)
     }
     
+    @Test("Test ExpressionByDictionary")
+    func testExpressionByDictionary() throws {
+        
+        let params: Params = ["ids": [UUID(), UUID(), UUID()]]
+        print(params.lookup)
+        #expect(params.lookup.ids.count == 3)
+    }
+    
+    @Test("Test Nesting Codable")
+    func testNestingCodable() throws {
+        let markup = MessageReply(
+            text: "This is a reply message!",
+            toID: 10086,
+            markup: Markup(
+                keyboards: [
+                    [KeyboardButton(text: "Hang up", callbackData: "/hang-up")],
+                    [KeyboardButton(text: "Recording", callbackData: "/recording")]
+                ]
+            )
+        )
+        let lookup = Lookup(markup)
+        print(lookup.description)
+        #expect(lookup.text.string == "This is a reply message!")
+        #expect(lookup.toID.string == "10086")
+        #expect(lookup.toID.int == 10086)
+        
+        #expect(lookup.markup.inline_keyboard.0.0.text.string == "Hang up")
+        #expect(lookup.markup.inline_keyboard.0.0.callback_data.string == "/hang-up")
+        
+        #expect(lookup.markup.inline_keyboard.1.0.text.string == "Recording")
+        #expect(lookup.markup.inline_keyboard.1.0.callback_data.string == "/recording")
+    }
+    
     @Test("Test Unwrap")
     func testUnwrap() throws {
         let model = UnwrapModel(id: UUID(), age: 1, type: .cat, intType: .cat, date: Date())
@@ -438,6 +528,23 @@ struct LookupTests {
 """
         let clookup = Lookup(json).compactMapValues()
         #expect(clookup.hasKey("user") == false)
+    }
+    
+    @Test("Test Array")
+    func testArray() async throws {
+        let lookup: Lookup = ["ids": [UUID()]]
+        print(lookup.description)
+        #expect(lookup.ids.count == 1)
+    }
+    
+    // Codable 需要获取 CodingKeys 的结果，否则服务端会出问题。。。
+    @Test("Test Codable Object")
+    func testCodableObject() throws {
+        
+        let lookup = Lookup(CodableObject(id: UUID(), text: "Hello, world!"))
+        print(lookup.description)
+        // t_ext is Codable `CodingKey`
+        #expect(lookup.t_ext.string == "Hello, world!")
     }
     
     #if os(iOS)
